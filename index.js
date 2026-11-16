@@ -1,6 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const http = require('http');
+const qrcode = require('qrcode-terminal');
 
 http.createServer((req, res) => res.end('Miracle Bot is Running!')).listen(process.env.PORT || 3000);
 
@@ -9,12 +10,13 @@ async function startBot() {
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Miracle Bot', 'Chrome', '1.0']
+        browser: ['Miracle Bot', 'Chrome', '1.0'],
+        printQRInTerminal: false
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    // PAIRING CODE FOR 09123358519 - NEW CODE EVERY 20 SECONDS!
+    // PAIRING CODE FOR 09123358519 - NEW CODE EVERY 60 SECONDS! (WhatsApp way)
     let codeInterval;
     if (!sock.authState.creds.registered) {
         const phoneNumber = '2349123358519';
@@ -23,6 +25,7 @@ async function startBot() {
             try {
                 const code = await sock.requestPairingCode(phoneNumber);
                 console.log('YOUR PAIRING CODE IS: ' + code);
+                console.log('You have 60 seconds to type this code!');
             } catch (e) {
                 console.log('Pairing error:', e.message);
             }
@@ -30,12 +33,20 @@ async function startBot() {
 
         setTimeout(() => {
             getCode();
-            codeInterval = setInterval(getCode, 20000);
+            codeInterval = setInterval(getCode, 60000);
         }, 3000);
     }
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+
+        // QR CODE - SCAN THIS ONE TOO! Lasts 60 seconds!
+        if (qr) {
+            console.log('=== SCAN THIS QR NOW - YOU HAVE 60 SECONDS ===');
+            qrcode.generate(qr, { small: true });
+            console.log('=== OR USE PAIRING CODE BELOW ===');
+        }
+
         if (connection === 'close') {
             if (codeInterval) clearInterval(codeInterval);
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
