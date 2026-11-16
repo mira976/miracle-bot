@@ -19,7 +19,7 @@ async function startBot() {
     // PAIRING CODE FOR 09123358519 - NEW CODE EVERY 60 SECONDS! (WhatsApp way)
     let codeInterval;
     if (!sock.authState.creds.registered) {
-        const phoneNumber = '2349123358519';
+        const phoneNumber = '+2349123358519';
 
         async function getCode() {
             try {
