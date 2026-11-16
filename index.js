@@ -1,6 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const http = require('http');
+const qrcode = require('qrcode-terminal');
 
 // Keep Render alive
 http.createServer((req, res) => res.end('Miracle Bot is Running!')).listen(process.env.PORT || 3000);
@@ -9,7 +10,6 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth');
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state,
         browser: ['Miracle Bot', 'Chrome', '1.0']
     });
@@ -17,7 +17,11 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        if (qr) {
+            console.log('SCAN THIS QR CODE WITH WHATSAPP:');
+            qrcode.generate(qr, { small: true });
+        }
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed, reconnecting...', shouldReconnect);
