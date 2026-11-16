@@ -1,84 +1,45 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const http = require('http');
-const qrcode = require('qrcode-terminal');
+const express = require('express');
+const QRCode = require('qrcode');
 
-http.createServer((req, res) => res.end('Miracle Bot is Running!')).listen(process.env.PORT || 3000);
+const app = express();
+let currentQR = '';
+
+app.get('/', (req, res) => res.send('Miracle Bot is Running! Go to /qr to scan'));
+app.get('/qr', async (req, res) => {
+    if (!currentQR) return res.send('<h2>No QR yet. Wait 10 seconds and refresh. If already connected, no QR needed.</h2>');
+    const qrImage = await QRCode.toDataURL(currentQR);
+    res.send(`<h1>Scan this with WhatsApp</h1><img src="${qrImage}" style="width:350px"><br><p>WhatsApp > Linked Devices > Link a Device > Scan</p><script>setTimeout(()=>location.reload(), 15000)</script>`);
+});
+
+app.listen(10000, () => console.log('Website running on port 10000'));
 
 async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth');
+    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     const sock = makeWASocket({
+        version,
         logger: pino({ level: 'silent' }),
+        printQRInTerminal: false,
         auth: state,
-        browser: ['Miracle Bot', 'Chrome', '1.0'],
-        printQRInTerminal: false
+        browser: ['Ubuntu', 'Chrome', '22.04.4']
     });
-
     sock.ev.on('creds.update', saveCreds);
-
-    // PAIRING CODE FOR 09123358519 - NEW CODE EVERY 60 SECONDS! (WhatsApp way)
-    let codeInterval;
-    if (!sock.authState.creds.registered) {
-        const phoneNumber = '+2349123358519';
-
-        async function getCode() {
-            try {
-                const code = await sock.requestPairingCode(phoneNumber);
-                console.log('YOUR PAIRING CODE IS: ' + code);
-                console.log('You have 60 seconds to type this code!');
-            } catch (e) {
-                console.log('Pairing error:', e.message);
-            }
-        }
-
-        setTimeout(() => {
-            getCode();
-            codeInterval = setInterval(getCode, 60000);
-        }, 3000);
-    }
-
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
-
-        // QR CODE - SCAN THIS ONE TOO! Lasts 60 seconds!
         if (qr) {
-            console.log('=== SCAN THIS QR NOW - YOU HAVE 60 SECONDS ===');
-            qrcode.generate(qr, { small: true });
-            console.log('=== OR USE PAIRING CODE BELOW ===');
+            currentQR = qr;
+            console.log('NEW QR READY! Go to /qr to scan am!');
         }
-
+        if (connection === 'open') {
+            currentQR = '';
+            console.log('✅ Connected Successfully!');
+        }
         if (connection === 'close') {
-            if (codeInterval) clearInterval(codeInterval);
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed, reconnecting...', shouldReconnect);
             if (shouldReconnect) startBot();
-        } else if (connection === 'open') {
-            if (codeInterval) clearInterval(codeInterval);
-            console.log('✅ Miracle Bot Connected Successfully!');
-        }
-    });
-
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0];
-        if (!msg.message || msg.key.fromMe) return;
-        const from = msg.key.remoteJid;
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-        const cmd = text.trim().toLowerCase();
-        console.log('Message:', text, 'from:', from);
-
-        if (cmd === '.ping' || cmd === 'ping') {
-            await sock.sendMessage(from, { text: '🏓 Pong! Miracle Bot is Alive!' });
-        }
-        if (cmd === '.menu' || cmd === 'menu' || cmd === '.help') {
-            await sock.sendMessage(from, { text: `✨ *MIRACLE BOT MENU* ✨\n\n.ping - Check if bot is alive\n.menu - Show this menu\n.hi - Say hello\n.owner - Owner info\n\nMore commands coming soon!` });
-        }
-        if (cmd === '.hi' || cmd === 'hi' || cmd === 'hello') {
-            await sock.sendMessage(from, { text: 'Hello! 👋 I am Miracle Bot. Type .menu to see what I can do.' });
-        }
-        if (cmd === '.owner') {
-            await sock.sendMessage(from, { text: '👑 Owner: Mira\nBot made with love ❤️' });
         }
     });
 }
-
 startBot();
