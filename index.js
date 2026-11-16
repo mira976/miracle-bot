@@ -14,27 +14,35 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // PAIRING CODE FOR 09123358519
+    // PAIRING CODE FOR 09123358519 - NEW CODE EVERY 20 SECONDS!
+    let codeInterval;
     if (!sock.authState.creds.registered) {
         const phoneNumber = '2349123358519';
-        setTimeout(async () => {
+
+        async function getCode() {
             try {
                 const code = await sock.requestPairingCode(phoneNumber);
                 console.log('YOUR PAIRING CODE IS: ' + code);
-                console.log('PAIRING CODE: ' + code);
             } catch (e) {
                 console.log('Pairing error:', e.message);
             }
+        }
+
+        setTimeout(() => {
+            getCode();
+            codeInterval = setInterval(getCode, 20000);
         }, 3000);
     }
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
+            if (codeInterval) clearInterval(codeInterval);
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed, reconnecting...', shouldReconnect);
             if (shouldReconnect) startBot();
         } else if (connection === 'open') {
+            if (codeInterval) clearInterval(codeInterval);
             console.log('✅ Miracle Bot Connected Successfully!');
         }
     });
