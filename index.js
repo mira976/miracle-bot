@@ -1,9 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const http = require('http');
-const qrcode = require('qrcode-terminal');
 
-// Keep Render alive
 http.createServer((req, res) => res.end('Miracle Bot is Running!')).listen(process.env.PORT || 3000);
 
 async function startBot() {
@@ -16,12 +14,22 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
+    // PAIRING CODE FOR 09123358519
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = '2349123358519';
+        setTimeout(async () => {
+            try {
+                const code = await sock.requestPairingCode(phoneNumber);
+                console.log('YOUR PAIRING CODE IS: ' + code);
+                console.log('PAIRING CODE: ' + code);
+            } catch (e) {
+                console.log('Pairing error:', e.message);
+            }
+        }, 3000);
+    }
+
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        if (qr) {
-            console.log('SCAN THIS QR CODE WITH WHATSAPP:');
-            qrcode.generate(qr, { small: true });
-        }
+        const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed, reconnecting...', shouldReconnect);
