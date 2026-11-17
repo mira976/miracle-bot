@@ -28,25 +28,38 @@ let userBuffers = {};
 let userTimers = {};
 let userHasBeenGreeted = {};
 
-// --- PORTFOLIO ---
+// --- PORTFOLIO - PROFESSIONAL ---
 const PORTFOLIO_LINK = 'https://miracle-tech.netlify.app/';
-const PORTFOLIO_CAPTION = `🔥 Mira-Tech - I Build Websites That Sell 🔥\n\n✅ E-commerce Website - N100,000\n✅ Business Website - N80,000\n✅ Landing Page - N50,000\n\nCheck my work here:\n${PORTFOLIO_LINK}\n\nDM me to start your project today!\nMiracle - +2349123358519`;
+const PORTFOLIO_CAPTION = `MIRA-TECH | Websites That Sell
+
+Need a website for your business?
+
+- E-commerce Website — ₦100,000 | 3-5 days
+- Business Website — ₦80,000 | 2-3 days
+- Landing Page — ₦50,000 | 1-2 days
+
+Trusted by 15+ businesses: Proofmee Fibon Solar, Azon Gadget Store, Ping AI.
+
+View my work:
+https://miracle-tech.netlify.app/
+
+DM to start your project.
+Miracle — +234 912 335 8519`;
 let lastStatusPostedDate = '';
 let lastMondayStatusPostedDate = '';
 
 async function postPortfolioStatus() {
   if (!sock) return false;
   try {
-    console.log('📢 Posting Portfolio to Status...');
-    try {
-      await sock.sendMessage('status@broadcast', { image: { url: 'https://miracle-tech.netlify.app/og-image.jpg' }, caption: PORTFOLIO_CAPTION });
-      console.log('✅ Portfolio Status Posted with Image!');
-      return true;
-    } catch (imgErr) { console.log('Image status failed, trying text:', imgErr.message); }
-    await sock.sendMessage('status@broadcast', { text: PORTFOLIO_CAPTION });
-    console.log('✅ Portfolio Status Posted with Text!');
+    console.log('📢 Sending Status to Miracle to post - so he will SEE it...');
+    // We do NOT use status@broadcast anymore because you cannot see it on your own phone.
+    // Bot sends it to YOU, you forward to Status in 2 seconds and YOU WILL SEE IT.
+    await botSend(OWNER_NUMBER + '@s.whatsapp.net', {
+      text: `📢 YOUR STATUS IS READY - POST IT NOW\n\nTap and hold this message below, tap Forward > My Status > Send. You will see it immediately.\n\n--- COPY BELOW ---\n\n${PORTFOLIO_CAPTION}`
+    });
+    console.log('✅ Status sent to Miracle for posting');
     return true;
-  } catch (e) { console.log('❌ Failed to post status:', e.message); return false; }
+  } catch (e) { console.log('❌ Failed:', e.message); return false; }
 }
 async function postStatusOnChat() {
   const today = new Date().toDateString();
@@ -71,7 +84,6 @@ function startMondayStatusJob() {
   console.log('📅 Monday Status Job Started - Every Monday 9AM Lagos');
 }
 
-// Helper to send message AND remember it is bot's message + link preview
 async function botSend(from, content) {
   if (content.text && content.text.includes('miracle-tech.netlify.app')) {
     content.linkPreview = true;
@@ -81,7 +93,21 @@ async function botSend(from, content) {
   return sent;
 }
 
-const SYSTEM_PROMPT = `You are Miracle Virtual AI Assistant, that's all. You handle Miracle's WhatsApp when he is NOT on WhatsApp.
+// Check if user is asking Bot a question about services / Bot itself - Bot should ALWAYS answer these
+function isBotQuestion(text) {
+  const t = text.toLowerCase();
+  return t.includes('price') || t.includes('cost') || t.includes('how much') || t.includes('how much is') ||
+    t.includes('what do you do') || t.includes('what can you do') || t.includes('services') || t.includes('service') ||
+    t.includes('portfolio') || t.includes('your work') || t.includes('his work') || t.includes('show me') ||
+    t.includes('website') || t.includes('e-commerce') || t.includes('ecommerce') || t.includes('landing page') ||
+    t.includes('business website') || t.includes('how long') || t.includes('how many days') ||
+    t.includes('who be this') || t.includes('who are you') || t.includes('who is this') || t.includes('what is your name') ||
+    t.includes('wetin be your name') || t.includes('who be you') || t.includes('are you miracle') || t.includes('are you real') ||
+    t.includes('where are you') || t.includes('where is miracle') || t.includes('when will he') || t.includes('when will miracle') ||
+    t.includes('can you') || t.includes('do you build') || t.includes('do you do') || t.includes('do you make');
+}
+
+const SYSTEM_PROMPT = `You are Miracle Virtual AI Assistant. You handle Miracle's WhatsApp when he is NOT on WhatsApp.
 
 Miracle is a web developer in Lagos.
 Email: mchansvi@gmail.com
@@ -91,11 +117,11 @@ Services: E-commerce N100,000 (3-5 days), Business Website N80,000 (2-3 days), L
 Projects: Proofmee Fibon Solar, Azon Gadget Store, Ping AI. Built 15+ websites.
 
 VERY IMPORTANT - EVERY REPLY MUST START LIKE THIS (in user's language):
-First tell them: You are Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please.
+First tell them: You are Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please.
 Then answer their question.
 Then add portfolio link: https://miracle-tech.netlify.app/
 
-Example in English: "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. [Answer their question here]. Check his work here: https://miracle-tech.netlify.app/"
+Example in English: "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. [Answer their question here]. Check his work here: https://miracle-tech.netlify.app/"
 Example in Pidgin: "Na Miracle Virtual AI Assistant be this, na me dey handle am. Him no dey WhatsApp now, abeg try again later. [Answer here]. Check him work here: https://miracle-tech.netlify.app/"
 
 GOLDEN RULE - LANGUAGE:
@@ -133,12 +159,12 @@ async function callGroq(messages) {
 async function getOfflineMessage(userText) {
   try {
     let translated = await callGroq([
-      { role: 'system', content: `You are a translator. User wrote: "${userText}". Detect EXACT language and style. Translate to that SAME language: "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please." Return ONLY translation.` },
+      { role: 'system', content: `You are a translator. User wrote: "${userText}". Detect EXACT language and style. Translate to that SAME language: "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please." Return ONLY translation.` },
       { role: 'user', content: userText }
     ]);
     if (translated && translated.trim()) return translated.trim();
   } catch (e) { }
-  return "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please.";
+  return "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please.";
 }
 
 async function transcribeVoice(buffer) {
@@ -203,11 +229,11 @@ async function downloadBuffer(msg, type) {
 
 // Process all messages user sent together, after they finished - WAIT SYSTEM
 async function processUserBatch(from) {
+  if (!from || from === 'status@broadcast' || from.includes('status@broadcast') || from.includes('@broadcast')) return;
   const batch = userBuffers[from] || [];
   userBuffers[from] = [];
   if (userTimers[from]) { clearTimeout(userTimers[from]); delete userTimers[from]; }
   if (batch.length === 0) return;
-  if (lastOwnerReply[from]) return;
 
   console.log(`📦 Processing batch for ${from}: ${batch.length} messages`);
 
@@ -220,6 +246,21 @@ async function processUserBatch(from) {
   let firstText = batch[0].text || '';
   let lowerAll = allTexts.toLowerCase().trim();
 
+  if (!allTexts && !hasVoice && !hasImage && !hasVideo && !hasDocument && !hasSticker) return;
+
+  // --- AFTER USER DROPPED MESSAGE: Bot should NOT reply again, EXCEPT if user is asking Bot a question ---
+  if (lastOwnerReply[from]) {
+    if (isBotQuestion(allTexts)) {
+      // User is asking Bot a question after dropping message - Bot SHOULD talk as assistant
+      console.log(`❓ User ${from} asked Bot a question after dropping message - Bot will answer`);
+      delete lastOwnerReply[from]; // Allow Bot to answer this question
+      // Fall through to question handling below
+    } else {
+      console.log(`🔇 User ${from} already dropped message - Bot stays silent`);
+      return;
+    }
+  }
+
   // --- USER SAYS STOP ---
   if (lowerAll === 'stop' || lowerAll.includes('stop replying') || lowerAll.includes('stop disturbing') || lowerAll.includes('leave me alone') || lowerAll.includes('do not reply') || lowerAll.includes("don't reply") || lowerAll.includes('dont reply') || lowerAll.includes('stop messaging') || lowerAll.includes('stop chatting') || lowerAll.includes('stop texting')) {
     lastOwnerReply[from] = Date.now();
@@ -230,36 +271,61 @@ async function processUserBatch(from) {
   // --- STICKER ONLY ---
   if (hasSticker && batch.length === 1 && !allTexts) {
     let reply = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser sent a STICKER. Reply friendly. Say: "Nice sticker 😄 I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. Send your message for him." Keep short.` },
+      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser sent a STICKER. Reply friendly. Say: "Nice sticker 😄 I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. Send your message for him." Keep short.` },
       { role: 'user', content: '[User sent a sticker]' }
     ]);
-    if (!reply) reply = "Nice sticker 😄 I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. Send your message for him.";
+    if (!reply) reply = "Nice sticker 😄 I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. Send your message for him.";
     await botSend(from, { text: reply.replace(/\*\*/g, '').trim() });
     await postStatusOnChat();
     return;
   }
 
-  // --- GREETING - Hi / Hello -> 2 Messages ---
+  // --- GREETING - Hi / Hello -> 2 Messages - LOCAL GREETING, NO AI MIX ---
   const greetings = ['hi', 'hello', 'hey', 'hii', 'hiii', 'heyy', 'how far', 'how are you', 'good morning', 'good afternoon', 'good evening', 'morning', 'afternoon', 'evening', 'yo', 'sup', 'wassup', 'hola', 'bonjour', 'salut', 'ciao', 'hallo', 'sannu', 'ndewo', 'bawo', 'e nle', 'kedu', 'nnoo', 'e kaaro', 'selam', 'ola', 'oi'];
   const cleanGreet = lowerAll.replace(/[!?. ,]/g, '').trim();
   const isGreetingOnly = batch.length === 1 && !hasVoice && !hasImage && !hasSticker && greetings.includes(cleanGreet);
 
   if (isGreetingOnly && !userHasBeenGreeted[from]) {
     userHasBeenGreeted[from] = true;
-    let greetReply = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser said: "${firstText}". Reply ONLY short greeting in EXACT same language. Example Pidgin: "Hello, how far?" Example English: "Hello!"` },
-      { role: 'user', content: firstText }
-    ]);
-    if (!greetReply) greetReply = "Hello!";
+    const lowerFirst = firstText.toLowerCase().trim();
+    let greetReply = "Hello!";
+    if (lowerFirst.includes('how far')) greetReply = "How far, I dey o 👋";
+    else if (lowerFirst.includes('good morning')) greetReply = "Good morning!";
+    else if (lowerFirst.includes('good afternoon')) greetReply = "Good afternoon!";
+    else if (lowerFirst.includes('good evening')) greetReply = "Good evening!";
+    else if (lowerFirst.includes('hola')) greetReply = "Hola!";
+    else if (lowerFirst.includes('bonjour')) greetReply = "Bonjour!";
+    else if (lowerFirst.includes('salut')) greetReply = "Salut!";
+    else if (lowerFirst.includes('ciao')) greetReply = "Ciao!";
+    else if (lowerFirst.includes('sannu')) greetReply = "Sannu!";
+    else if (lowerFirst.includes('ndewo')) greetReply = "Ndewo!";
+    else if (lowerFirst.includes('bawo') || lowerFirst.includes('e nle')) greetReply = "E nle!";
+    else if (lowerFirst.includes('kedu')) greetReply = "Kedu!";
+    else if (lowerFirst.includes('yo') || lowerFirst.includes('sup')) greetReply = "Yo, what's up?";
+    else if (lowerFirst.includes('hi') || lowerFirst.includes('hello') || lowerFirst.includes('hey')) greetReply = "Hello!";
+
     let introReply = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser greeted you. Send second message in EXACT same language: "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. What is your message for him?" Return ONLY that.` },
+      { role: 'system', content: `IGNORE the rule that says EVERY reply must start with intro. For THIS message only, you are sending the SECOND message. You MUST say: "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. What is your message for him?" Translate that to EXACT same language user used. Return ONLY that, nothing else, no link.` },
       { role: 'user', content: firstText }
     ]);
-    if (!introReply) introReply = "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. What is your message for him?";
+    if (!introReply) introReply = "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. What is your message for him?";
     await botSend(from, { text: greetReply.replace(/\*\*/g, '').trim() });
     await new Promise(r => setTimeout(r, 1000));
     await botSend(from, { text: introReply.replace(/\*\*/g, '').trim() });
     await postStatusOnChat();
+    return;
+  }
+
+  // --- BOT QUESTION: User asking about price / services / Bot itself - Bot MUST answer as assistant, do NOT forward, do NOT stop ---
+  if (isBotQuestion(allTexts) && !hasVoice && !hasImage && batch.length >= 1 && !lowerAll.includes('tell him') && !lowerAll.includes('tell miracle')) {
+    // But if user already dropped message before, we already allowed it above. Answer here and keep Bot alive.
+    let answer = await callGroq([
+      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser is asking you a QUESTION about Miracle / services / price / who you are. Answer as his assistant in EXACT same language user used. Be professional, short, helpful. Add portfolio link at end. Do NOT say "Thanks for your message" and do NOT stop talking.` },
+      { role: 'user', content: firstText }
+    ]);
+    if (!answer) answer = "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. Check his work: https://miracle-tech.netlify.app/";
+    await botSend(from, { text: answer.replace(/\*\*/g, '').trim() });
+    // Do NOT set lastOwnerReply here - Bot stays alive to answer more questions
     return;
   }
 
@@ -269,16 +335,18 @@ async function processUserBatch(from) {
       { role: 'system', content: SYSTEM_PROMPT + "\n\nUser is asking who you are. Introduce yourself as Miracle Virtual AI Assistant in EXACT same language user used. Say he is not on WhatsApp now, try again later. Add portfolio link." },
       { role: 'user', content: firstText }
     ]);
-    if (!intro) intro = "I am Miracle Virtual AI Assistant, that's all. He is not on WhatsApp now, try again later please. Check his work: https://miracle-tech.netlify.app/";
+    if (!intro) intro = "I am Miracle Virtual AI Assistant. He is not on WhatsApp now, try again later please. Check his work: https://miracle-tech.netlify.app/";
     await botSend(from, { text: intro.replace(/\*\*/g, '').trim() });
     await postStatusOnChat();
     return;
   }
 
-  // --- USER SAYS OK ---
-  if (lowerAll === 'ok' || lowerAll === 'okay' || lowerAll === 'alright' || lowerAll === 'okay o' || lowerAll === 'ok na' || lowerAll === 'fine' || lowerAll === 'yes') {
+  // --- USER SAYS OK (including typos like Okn) ---
+  const okWords = ['ok', 'okay', 'okn', 'okk', 'okey', 'okay o', 'ok na', 'alright', 'fine', 'yes', 'k', 'kk', 'yea', 'yeah', 'no wahala', 'good'];
+  const cleanOk = lowerAll.replace(/[!?. ,]/g, '').trim();
+  if (okWords.includes(cleanOk) || lowerAll.startsWith('okn')) {
     let askMsg = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser said OK. Reply in EXACT same language: "Okay, send your message now, I will give it to my Boss."` },
+      { role: 'system', content: `IGNORE the rule that says add portfolio link. For THIS message ONLY, do NOT add any link. You MUST say in EXACT same language: "Okay, send your message now, I will give it to my Boss." Return ONLY that.` },
       { role: 'user', content: firstText }
     ]);
     if (!askMsg) askMsg = "Okay, send your message now, I will give it to my Boss.";
@@ -286,12 +354,11 @@ async function processUserBatch(from) {
     return;
   }
 
-  // --- USER WANTS TO DROP MESSAGE / OR USER SENT THEIR REAL MESSAGE ---
-  // If user said "tell him / drop message" but has not yet sent the actual message, ask them to send it
+  // --- USER WANTS TO DROP MESSAGE ---
   const wantsToDrop = lowerAll.includes('drop message') || lowerAll.includes('leave a message') || lowerAll.includes('tell him') || lowerAll.includes('tell miracle') || lowerAll.includes('tell am') || lowerAll.includes('tell your oga') || lowerAll.includes('tell your boss') || lowerAll.includes('help me tell') || lowerAll.includes('i wan tell') || lowerAll.includes('message for him') || lowerAll.includes('message for miracle') || lowerAll.includes('can you tell') || lowerAll.includes('please tell') || lowerAll.includes('abeg tell') || lowerAll.includes('pass my message');
   if (wantsToDrop && !hasVoice && !hasImage && batch.length === 1 && allTexts.split(' ').length < 8) {
     let askMsg = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser wants to DROP a message for Miracle. Reply in EXACT same language: "Okay, drop your message now, I will tell Miracle when he comes online."` },
+      { role: 'system', content: `IGNORE the rule that says add portfolio link. For THIS message ONLY, do NOT add any link. You MUST say in EXACT same language user used: "Okay, drop your message now, I will tell Miracle when he comes online." Return ONLY that, no link, no extra intro.` },
       { role: 'user', content: firstText }
     ]);
     if (!askMsg) askMsg = "Okay, drop your message now, I will tell Miracle when he comes online.";
@@ -299,7 +366,7 @@ async function processUserBatch(from) {
     return;
   }
 
-  // --- USER HAS FINISHED SENDING MESSAGE FOR MIRACLE - Forward to Miracle + Professional Closing ---
+  // --- USER HAS FINISHED SENDING MESSAGE FOR MIRACLE - Forward to Miracle + Professional Closing + STOP ---
   let summaryForMiracle = `📩 NEW MESSAGE FOR YOU from ${from}:\n\n`;
   if (allTexts) summaryForMiracle += `Text: "${allTexts}"\n`;
   if (hasVoice) summaryForMiracle += `+ Voice Note\n`;
@@ -309,7 +376,6 @@ async function processUserBatch(from) {
   if (hasSticker) summaryForMiracle += `+ Sticker\n`;
   summaryForMiracle += `\nReply them when you are back. Type .bot to let bot talk again.`;
 
-  // Transcribe voice + describe image for Miracle
   for (let b of batch) {
     if (b.type === 'voice') {
       try {
@@ -329,21 +395,21 @@ async function processUserBatch(from) {
   }
 
   try { await botSend(OWNER_NUMBER + '@s.whatsapp.net', { text: summaryForMiracle }); } catch (e) {}
+  // STOP Bot after user drops message - Bot will NOT reply again unless user asks Bot a question
   lastOwnerReply[from] = Date.now();
 
-  // Professional closing - That's All
   let thanksMsg = '';
   if (hasVoice && !allTexts) {
-    thanksMsg = "Thanks For Your Message, I have received your voice note. My Boss Will Reply to you soon, that's all.";
+    thanksMsg = "Thanks For Your Message, I have received your voice note. My Boss Will Reply to you soon.";
   } else if (hasImage && !allTexts) {
-    thanksMsg = "Thanks For Your Message, I have seen your image. My Boss Will Reply to you soon, that's all.";
+    thanksMsg = "Thanks For Your Message, I have seen your image. My Boss Will Reply to you soon.";
   } else {
     thanksMsg = await callGroq([
-      { role: 'system', content: SYSTEM_PROMPT + `\n\nUser just finished sending message(s) for Miracle. They sent: "${allTexts}" ${hasVoice ? '+ voice note' : ''} ${hasImage ? '+ image' : ''} ${hasSticker ? '+ sticker' : ''}. Reply in EXACT same language user used: "Thanks For Your Message, My Boss Will Reply to you soon, that's all." If they sent image/voice, mention you have seen it. Return ONLY that professional closing message.` },
+      { role: 'system', content: `IGNORE the rule that says add portfolio link. For THIS message ONLY, do NOT add any link. User just finished sending message(s) for Miracle. They sent: "${allTexts}" ${hasVoice ? '+ voice note' : ''} ${hasImage ? '+ image' : ''} ${hasSticker ? '+ sticker' : ''}. Reply in EXACT same language user used: "Thanks For Your Message, My Boss Will Reply to you soon." If they sent image/voice, mention you have seen it. Return ONLY that professional closing message, no link.` },
       { role: 'user', content: allTexts || '[voice/image/sticker]' }
     ]);
   }
-  if (!thanksMsg) thanksMsg = "Thanks For Your Message, My Boss Will Reply to you soon, that's all.";
+  if (!thanksMsg) thanksMsg = "Thanks For Your Message, My Boss Will Reply to you soon.";
   await botSend(from, { text: thanksMsg.replace(/\*\*/g, '').trim() });
   await postStatusOnChat();
 }
@@ -365,7 +431,7 @@ async function startBot() {
     for (let call of calls) {
       if (call.status === 'offer') {
         try {
-          await botSend(call.from, { text: "I have seen your Call. I am Miracle Virtual AI Assistant, that's all. My Boss Will Reply you when he is back online. Please send your message here as text or voice note, I will give it to him." });
+          await botSend(call.from, { text: "I have seen your Call. I am Miracle Virtual AI Assistant. My Boss Will Reply you when he is back online. Please send your message here as text or voice note, I will give it to him." });
           await botSend(OWNER_NUMBER + '@s.whatsapp.net', { text: `📞 MISSED CALL: ${call.from} just called.` });
         } catch (e) {}
       }
@@ -377,18 +443,27 @@ async function startBot() {
       const msg = m.messages[0];
       if (!msg.message) return;
       const from = msg.key.remoteJid;
+      if (!from) return;
       if (from.includes('@g.us')) return;
+      if (from === 'status@broadcast' || from.includes('status@broadcast') || from.includes('@broadcast') || from.includes('broadcast')) return;
 
-      // --- YOUR COMMANDS + OWNER TAKEOVER ---
       if (msg.key.fromMe) {
         if (botSentIds.has(msg.key.id)) return;
         const myText = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-        const lowerMy = myText.toLowerCase().trim();
+        const lowerMy = myText.toLowerCase().replace(/\s+/g, '').trim();
         if (lowerMy === '.offline') { isOfflineMode = true; console.log('🔴 OFFLINE MODE ON'); return; }
         if (lowerMy === '.online') { isOfflineMode = false; hasSentOfflineMsg = {}; console.log('🟢 ONLINE MODE ON'); return; }
         if (lowerMy === '.bot') { lastOwnerReply = {}; waitingForDropMessage = {}; userHasBeenGreeted = {}; userBuffers = {}; console.log('🤖 BOT RESUMED - Miracle is offline again'); return; }
         if (lowerMy === '.stop') { console.log('🛑 BOT STOPPED'); return; }
-        if (lowerMy === '.status') { await postPortfolioStatus(); return; }
+        if (lowerMy === '.status') {
+          console.log('📢 .status command from Miracle - posting...');
+          const ok = await postPortfolioStatus();
+          try {
+            if (ok) await botSend(from, { text: '✅ Done, I have sent your Status to you. Forward it to your Status now - you will see it.' });
+            else await botSend(from, { text: '❌ Failed to post Status. Check Render logs. Try again.' });
+          } catch (e) {}
+          return;
+        }
         if (from && !from.includes('status') && from !== OWNER_NUMBER + '@s.whatsapp.net') {
           lastOwnerReply[from] = Date.now();
           console.log('👤 Miracle replied to', from, '- Bot stopped for this user');
@@ -396,19 +471,17 @@ async function startBot() {
         return;
       }
 
-      if (lastOwnerReply[from]) return;
-
-      // OWNER sends .status from another phone
-      const ownerTextCheck = (msg.message.conversation || msg.message.extendedTextMessage?.text || '').toLowerCase().trim();
+      // NOTE: We do NOT block here with lastOwnerReply anymore - processUserBatch handles it
+      // so Bot can still answer questions after user drops message
+      const ownerTextCheck = (msg.message.conversation || msg.message.extendedTextMessage?.text || '').toLowerCase().replace(/\s+/g, '').trim();
       if (from === OWNER_NUMBER + '@s.whatsapp.net' || from.includes('2349123358519')) {
         if (ownerTextCheck === '.status') {
           await postPortfolioStatus();
-          await botSend(from, { text: 'Done, I have posted your portfolio to your Status. Check your Status now.' });
+          await botSend(from, { text: '✅ Done, I have sent your Status to you. Forward it to your Status now.' });
           return;
         }
       }
 
-      // --- WAIT SYSTEM: Collect messages, wait 10s for user to finish ---
       if (!userBuffers[from]) userBuffers[from] = [];
       let msgType = 'text';
       let msgContent = '';
