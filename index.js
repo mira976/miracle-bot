@@ -20,17 +20,77 @@ const MODEL_TTS = "playai-tts";
 
 let isOfflineMode = false;
 let lastOwnerReply = {};
-let hasSentOfflineMsg = {}; // Offline message ONLY ONCE per person
-let waitingForDropMessage = {}; // Who wants to drop message
+let hasSentOfflineMsg = {};
+let waitingForDropMessage = {};
 let droppedMessages = {};
+
+// --- PORTFOLIO STATUS SETTINGS ---
+const PORTFOLIO_LINK = 'https://miracle-tech.netlify.app/';
+const PORTFOLIO_CAPTION = `🔥 Mira-Tech - I Build Websites That Sell 🔥
+
+✅ E-commerce Website - N100,000
+✅ Business Website - N80,000
+✅ Landing Page - N50,000
+
+Check my work here:
+${PORTFOLIO_LINK}
+
+DM me to start your project today!
+Miracle - +2349123358519`;
+
+let lastStatusPostedDate = ''; // To post only once per day when AI chats
+let lastMondayStatusPostedDate = ''; // To avoid double Monday post
+
+// Post Portfolio to Status
+async function postPortfolioStatus() {
+  if (!sock) return;
+  try {
+    console.log('📢 Posting Portfolio to Status...');
+    await sock.sendMessage('status@broadcast', { text: PORTFOLIO_CAPTION });
+    console.log('✅ Portfolio Status Posted!');
+    return true;
+  } catch (e) {
+    console.log('❌ Failed to post status:', e.message);
+    return false;
+  }
+}
+
+// Called when AI replies - post status only once per day
+async function postStatusOnChat() {
+  const today = new Date().toDateString();
+  if (lastStatusPostedDate === today) return; // Already posted today, don't spam
+  lastStatusPostedDate = today;
+  await postPortfolioStatus();
+}
+
+// Check every 1 minute if it is Monday 9:00 AM Lagos time
+function startMondayStatusJob() {
+  setInterval(async () => {
+    try {
+      const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }));
+      const isMonday = now.getDay() === 1; // 1 = Monday
+      const is9AM = now.getHours() === 9 && now.getMinutes() < 2;
+      const today = now.toDateString();
+      if (isMonday && is9AM && lastMondayStatusPostedDate !== today) {
+        lastMondayStatusPostedDate = today;
+        lastStatusPostedDate = today;
+        await postPortfolioStatus();
+      }
+    } catch (e) {}
+  }, 60 * 1000);
+  console.log('📅 Monday Status Job Started - Every Monday 9AM Lagos');
+}
 
 const SYSTEM_PROMPT = `You are Mira-Tech, Miracle's boy who handles his WhatsApp when he is busy.
 
 Miracle is a web developer in Lagos.
 Email: mchansvi@gmail.com
 WhatsApp: +2349123358519
+Portfolio: https://miracle-tech.netlify.app/
 Services: E-commerce N100,000 (3-5 days), Business Website N80,000 (2-3 days), Landing Page N50,000 (1-2 days)
 Projects: Proofmee Fibon Solar, Azon Gadget Store, Ping AI. Built 15+ websites.
+
+When user asks for your work, portfolio, examples, or price, ALWAYS send the portfolio link: https://miracle-tech.netlify.app/
 
 GOLDEN RULE - MOST IMPORTANT:
 Once anybody chats you, reply EXACTLY the way the user chatted you. EXACTLY the language the user used to chat you, that is the way you reply.
@@ -76,7 +136,6 @@ async function callGroq(messages) {
   return data.choices?.[0]?.message?.content || '';
 }
 
-// SMART OFFLINE - Knows ALL languages, translates offline message to user's exact language, ONLY ONCE
 async function getOfflineMessage(userText) {
   try {
     let translated = await callGroq([
@@ -102,10 +161,8 @@ async function transcribeVoice(buffer) {
   return data.text || '';
 }
 
-// VOICE NOTE - ENGLISH ONLY
 async function textToVoiceEnglish(text) {
   try {
-    // Force English for voice
     let englishText = await callGroq([
       { role: 'system', content: `Translate this text to clean, clear, simple English for a voice note. Keep it short, natural, like a human speaking. Return ONLY the English translation. Text: "${text}"` },
       { role: 'user', content: text }
@@ -138,9 +195,9 @@ async function understandImage(base64Image, caption) {
 
 function smartLocalReply(q) {
   const t = q.toLowerCase();
-  if (t.includes('price') || t.includes('cost') || t.includes('how much')) return `E-commerce Store - N100,000 (3-5 days)\nBusiness Website - N80,000 (2-3 days)\nLanding Page - N50,000 (1-2 days)\n\nWhich one fits your business?`;
-  if (t.includes('project') || t.includes('work')) return `Miracle has built 15+ websites: Proofmee Fibon Solar, Azon Gadget Store, Ping AI. Which type you want?`;
-  return `Hello, welcome to Mira-Tech. I am Mira-Tech, assistant to Miracle. What would you like to build today? E-commerce, Business Website, or Landing Page?`;
+  if (t.includes('price') || t.includes('cost') || t.includes('how much')) return `E-commerce Store - N100,000 (3-5 days)\nBusiness Website - N80,000 (2-3 days)\nLanding Page - N50,000 (1-2 days)\n\nCheck my work: https://miracle-tech.netlify.app/\n\nWhich one fits your business?`;
+  if (t.includes('project') || t.includes('work') || t.includes('portfolio')) return `Miracle has built 15+ websites: Proofmee Fibon Solar, Azon Gadget Store, Ping AI. Check them here: https://miracle-tech.netlify.app/ Which type you want?`;
+  return `Hello, welcome to Mira-Tech. I am Mira-Tech, assistant to Miracle. What would you like to build today? E-commerce, Business Website, or Landing Page? Check my work: https://miracle-tech.netlify.app/`;
 }
 
 async function downloadBuffer(msg, type) {
@@ -160,7 +217,7 @@ async function startBot() {
     if (connection === 'close') {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) setTimeout(() => startBot(), 3000);
-    } else if (connection === 'open') { console.log('✅ Connected! Mira-Tech Online!'); lastQR = ''; }
+    } else if (connection === 'open') { console.log('✅ Connected! Mira-Tech Online!'); lastQR = ''; startMondayStatusJob(); }
   });
 
   sock.ev.on('call', async (calls) => {
@@ -182,6 +239,7 @@ async function startBot() {
       if (from.includes('@g.us')) return;
 
       // --- YOUR COMMANDS - Type to YOURSELF (Message Yourself) ---
+      // FIXED: Bot will NOT stop itself anymore. Bot messages are fromMe too, so we ignore them.
       if (msg.key.fromMe) {
         const myText = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
         const lowerMy = myText.toLowerCase().trim();
@@ -189,11 +247,14 @@ async function startBot() {
         if (lowerMy === '.online') { isOfflineMode = false; hasSentOfflineMsg = {}; console.log('🟢 ONLINE MODE ON'); return; }
         if (lowerMy === '.bot') { lastOwnerReply = {}; waitingForDropMessage = {}; console.log('🤖 BOT RESUMED'); return; }
         if (lowerMy === '.stop') { console.log('🛑 BOT STOPPED'); return; }
-        if (from && !from.includes('status')) lastOwnerReply[from] = Date.now();
+        // Manual test command: type .status to yourself to post portfolio status now
+        if (lowerMy === '.status') { await postPortfolioStatus(); return; }
+        // DO NOT set lastOwnerReply here - this was the bug that stopped the bot after 1 reply
+        // If YOU really want to take over a chat, type .stop to yourself, or reply them and then type .bot to resume later
         return;
       }
 
-      // If Miracle has replied to this user, bot STOPS for that user ONLY
+      // If user told bot to STOP, or dropped message, bot STOPS for that user ONLY
       if (lastOwnerReply[from]) return;
 
       const isVoice = msg.message.audioMessage || msg.message.pttMessage;
@@ -206,7 +267,6 @@ async function startBot() {
           const buffer = await downloadBuffer(msg.message.audioMessage || msg.message.pttMessage, 'audio');
           const transcribed = await transcribeVoice(buffer);
           if (!transcribed) { await sock.sendMessage(from, { text: "Sorry, I could not hear your voice note clearly. Please type it or send it again." }); return; }
-          // Check if user wants to drop message via voice
           const lowTrans = transcribed.toLowerCase();
           if (lowTrans.includes('drop message') || lowTrans.includes('tell him') || lowTrans.includes('leave a message')) {
             waitingForDropMessage[from] = true;
@@ -228,7 +288,6 @@ async function startBot() {
           ]);
           if (!reply) reply = smartLocalReply(transcribed);
           reply = reply.replace(/\*\*/g, '').trim();
-          // Offline message ONLY ONCE, and voice offline is also English
           if (isOfflineMode && !hasSentOfflineMsg[from]) {
             reply = reply + " Please try again later, Miracle will reply soon.";
             hasSentOfflineMsg[from] = true;
@@ -236,6 +295,8 @@ async function startBot() {
           const voiceBuffer = await textToVoiceEnglish(reply);
           if (voiceBuffer) await sock.sendMessage(from, { audio: voiceBuffer, mimetype: 'audio/mp4', ptt: true });
           else await sock.sendMessage(from, { text: reply });
+          // Post portfolio status when AI replies (once per day only)
+          await postStatusOnChat();
         } catch (e) { await sock.sendMessage(from, { text: "Sorry, I had trouble with your voice note. Please type your message." }); }
         return;
       }
@@ -249,6 +310,7 @@ async function startBot() {
             replyImg = replyImg.replace(/\*\*/g, '').trim();
             if (isOfflineMode && !hasSentOfflineMsg[from]) { replyImg = replyImg + "\n\n" + await getOfflineMessage(text || 'hello'); hasSentOfflineMsg[from] = true; }
             await sock.sendMessage(from, { text: replyImg });
+            await postStatusOnChat();
           }
         } catch (e) {}
         return;
@@ -258,12 +320,19 @@ async function startBot() {
       console.log('Message from:', from, 'Text:', text);
       const lowerText = text.toLowerCase();
 
+      // --- USER SAYS STOP - Bot must stop for that user only ---
+      if (lowerText === 'stop' || lowerText === 'stop pls' || lowerText === 'stop please' || lowerText.includes('stop replying') || lowerText.includes('stop disturbing') || lowerText.includes('leave me alone') || lowerText.includes('do not reply') || lowerText.includes("don't reply") || lowerText.includes('dont reply') || lowerText.includes('stop messaging') || lowerText.includes('stop chatting') || lowerText.includes('stop texting')) {
+        lastOwnerReply[from] = Date.now();
+        await sock.sendMessage(from, { text: "Okay, I understand. I will stop replying now. If you need Miracle, you can message him directly on +2349123358519. Have a good day." });
+        return;
+      }
+
       // --- DROP MESSAGE MODE ---
       if (waitingForDropMessage[from]) {
         const droppedMsg = text;
         droppedMessages[from] = droppedMsg;
         waitingForDropMessage[from] = false;
-        lastOwnerReply[from] = Date.now(); // Bot STOPS for this user now
+        lastOwnerReply[from] = Date.now();
         try {
           await sock.sendMessage(OWNER_NUMBER + '@s.whatsapp.net', { text: `📩 NEW DROPPED MESSAGE from ${from}:\n\n"${droppedMsg}"\n\nReply them when you are back. Type .bot to let bot talk again.` });
         } catch (e) {}
@@ -297,6 +366,7 @@ async function startBot() {
         intro = intro.replace(/\*\*/g, '').trim();
         if (isOfflineMode && !hasSentOfflineMsg[from]) { intro = intro + "\n\n" + await getOfflineMessage(text); hasSentOfflineMsg[from] = true; }
         await sock.sendMessage(from, { text: intro });
+        await postStatusOnChat();
         return;
       }
 
@@ -312,9 +382,10 @@ async function startBot() {
       } catch (e) {}
       if (!reply || !reply.trim()) reply = smartLocalReply(text);
       reply = reply.replace(/\*\*/g, '').replace(/##/g, '').trim();
-      // Offline message ONLY ONCE per person
       if (isOfflineMode && !hasSentOfflineMsg[from]) { reply = reply + "\n\n" + await getOfflineMessage(text); hasSentOfflineMsg[from] = true; }
       await sock.sendMessage(from, { text: reply });
+      // Post portfolio link to Status when AI sends a message (once per day only)
+      await postStatusOnChat();
 
     } catch (e) { console.log('Reply error:', e.message); }
   });
